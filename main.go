@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 var keys = make(map[string]string)
 
 const filepath = "keys.json"
+
+var adminID int64
 
 func saveKeys() {
 	file, err := os.Create(filepath)
@@ -47,6 +50,12 @@ func loadKeys() {
 	}
 }
 
+func loadAdminID() {
+	idStr := os.Getenv("ADMIN_ID")
+	id, _ := strconv.ParseInt(idStr, 10, 64)
+	adminID = id
+}
+
 func main() {
 	pref := tele.Settings{
 		Token:  os.Getenv("TOKEN"),
@@ -54,6 +63,7 @@ func main() {
 	}
 
 	loadKeys()
+	loadAdminID()
 
 	b, err := tele.NewBot(pref)
 	if err != nil {
@@ -62,6 +72,9 @@ func main() {
 	}
 
 	b.Handle("/addkey", func(c tele.Context) error {
+		if c.Sender().ID != adminID {
+			return c.Reply("You don't have permission to use this command.")
+		}
 		args := c.Args()
 		if len(args) < 2 {
 			return c.Reply("Usage: /addkey <keyword> <reply>")
@@ -74,6 +87,9 @@ func main() {
 	})
 
 	b.Handle("/delkey", func(c tele.Context) error {
+		if c.Sender().ID != adminID {
+			return c.Reply("You don't have permission to use this command.")
+		}
 		args := c.Args()
 		if len(args) < 1 {
 			return c.Reply("Usage: /delkey <keyword>")
@@ -85,15 +101,6 @@ func main() {
 			return c.Reply("Keyword deleted.")
 		}
 		return c.Reply("Keyword not found.")
-	})
-
-	b.Handle(tele.OnText, func(c tele.Context) error {
-		for key, reply := range keys {
-			if strings.Contains(c.Text(), key) {
-				return c.Reply(reply)
-			}
-		}
-		return nil
 	})
 
 	b.Handle(tele.OnText, func(c tele.Context) error {
